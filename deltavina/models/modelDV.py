@@ -12,16 +12,53 @@ __license__ = ""
 
 import os, sys
 
+import time
 import deltavina
 from deltavina.features import featureSASA
 from deltavina.features import featureVina
+import random
+import string
+import numpy as np
 
+def randomString(stringLength=10):
+    """Generate a random string of fixed length """
+    letters = string.ascii_lowercase
+    return ''.join(random.choice(letters) for i in range(stringLength))
 
 #-----------------------------------------------------------------------------
 # Code
 #-----------------------------------------------------------------------------
+def prepDV(pdblist, directory="preparseddata"):
+    """This is the slow part of the process, preparing protein/ligand combinations for rescoring.
+    This will put preparsed data in .npy format into the listed directory.
 
-def runDV(pdblist):
+    Parameters
+    ----------
+    pdblist : list[list[str,str]]
+        list of pdb or mol2 of protein and ligand
+    """
+    for pdb in pdblist:
+        prot = pdb[0]
+        lig = pdb[1]
+        tmpdir = randomString()
+        os.mkdir(tmpdir)
+        os.chdir(tmpdir)
+        os.symlink("../%s" % prot, prot)
+        os.symlink("../%s" % lig, lig)
+        start=time.time()
+        vina = featureVina.vina(prot, lig)
+        print "Vina features took %fs" % (time.time()-start)
+        start = time.time()
+        sasa = featureSASA.sasa(prot, lig)
+        print "SASA features took %fs" % (time.time()-start)
+        vinafeat = np.hstack([vina.vinaScore,  vina.features(10)])
+        sasafeat = np.array(sasa.sasalist)
+        feat = np.hstack([vinafeat, sasafeat])
+        np.save("../%s/%s-%s.npy" % (directory, prot, lig), feat)
+        os.chdir("..")
+        os.system("rm -rf %s" % tmpdir)
+
+def runDV(pdblist, directory="preparseddata"):
     """Give a list of pdblist
     Calculate features for each complex and write features to input.csv
     Run R script to calculate predicted pKd to output.csv
@@ -35,14 +72,11 @@ def runDV(pdblist):
     # feature calculation for each complex
     featlist = []
     for pdb in pdblist:
-        prot = pdb[0]
-        lig = pdb[1]
-        vina = featureVina.vina(prot, lig)
-        sasa = featureSASA.sasa(prot, lig)
-        vinafeat = [str(i) for i in [vina.vinaScore] + vina.features(10)]
-        sasafeat = [str(i) for i in sasa.sasalist]
-        feat = vinafeat + sasafeat
-        featlist.append(feat)
+        if os.path.exists("%s/%s-%s.npy" % (directory, pdb[0], pdb[1])):
+            featlist.append([str(x) for x in np.load("%s/%s-%s.npy" % (directory, pdb[0], pdb[1]))])
+        else:
+            print "Missing %s/%s-%s.npy! Did you run the preparation script?" % (directory, pdb[0], pdb[1])
+            exit()
     
     # write feature to input.csv as input for R script
     header = "pdb,vina," + ",".join(['F' + str(i+1) for i in range(20)]) + "\n"

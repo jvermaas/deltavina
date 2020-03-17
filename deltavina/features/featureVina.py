@@ -12,6 +12,7 @@ __license__ = ""
 
 import os, sys
 import numpy as np
+import time
 
 #-----------------------------------------------------------------------------
 # Code
@@ -100,11 +101,16 @@ def featureVina(inprot, inlig):
 
     protpdbqt = fprot + ".pdbqt"
     ligpdbqt = flig + ".pdbqt"
-    
+    start = time.time()
     prepareProt(inprot, protpdbqt)
+    print "prepareProt takes %fs" % (time.time()-start)
     prepareLig(inlig, ligpdbqt)
+    start = time.time()
+    print "prepareLig takes %fs" % (time.time()-start)
     os.system('rm *.tmp')
+    start = time.time()
     vinalist = runVina(protpdbqt, ligpdbqt)
+    print "runVina takes %fs" % (time.time()-start)
     
     # convert vina score and interaction term to be pKd unit
     c = -0.73349

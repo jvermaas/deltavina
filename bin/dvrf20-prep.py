@@ -43,6 +43,6 @@ else:
             pdblist.append(lines.split()[0:2])
 print(pdblist)
 
-modelDV.runDV(pdblist)
+modelDV.prepDV(pdblist)
 
 

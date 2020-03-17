@@ -14,7 +14,7 @@ import os, sys, pybel
 import openbabel as ob
 import numpy as np
 import pandas as pd
-
+import time
 from pharma import pharma
 
 #-----------------------------------------------------------------------------
@@ -38,7 +38,7 @@ def runMSMS(inprot, inlig, MSMSDIR = '.'):
     df
     
     """
-
+    start = time.time()
     # create tmp folder for all intermediate files
     os.system('mkdir tmp')
     
@@ -94,12 +94,14 @@ def runMSMS(inprot, inlig, MSMSDIR = '.'):
     df1['atm'] = np.array(comp)[:,0]
     df1['pharma'] = np.array(comp)[:,1]
     df1 = pd.DataFrame(df1)
-       
+    print "Setup takes %fs" % (time.time()-start)
+    start = time.time()
     # pdb to xyzr convert
     os.system("pdb_to_xyzr " + ppdb2 + " > p_sa.xyzr")
     os.system("pdb_to_xyzr " + lpdb2 + " > l_sa.xyzr")
     os.system("cat p_sa.xyzr l_sa.xyzr > pl_sa.xyzr")
-        
+    print "pdb_to_xyzr calls take %fs" % (time.time()-start)
+    start = time.time()
     # run msms in with radius 1.0 (if fail, will increase to be 1.1)
     os.system("msms -if p_sa.xyzr  -af p_sa.area -probe_radius 1.0 -surface ases > log1.tmp 2>&1")
     os.system("msms -if l_sa.xyzr  -af l_sa.area -probe_radius 1.0 -surface ases > log2.tmp 2>&1")
@@ -109,8 +111,9 @@ def runMSMS(inprot, inlig, MSMSDIR = '.'):
         os.system("msms -if l_sa.xyzr  -af l_sa.area -probe_radius 1.1 -surface ases > log2.tmp 2>&1")
         os.system("msms -if pl_sa.xyzr  -af pl_sa.area -probe_radius 1.1 -surface ases > log3.tmp 2>&1")
         print '1.1'
-
+    print "MSMS calls take %fs" % (time.time()-start)
     # read surface area to df2 
+    start = time.time()
     df2 = {} 
     tmp1 = np.genfromtxt('p_sa.area', skip_header=1)[:,2]
     tmp2 = np.genfromtxt('l_sa.area', skip_header=1)[:,2]
@@ -123,6 +126,7 @@ def runMSMS(inprot, inlig, MSMSDIR = '.'):
     df.columns = ['atm','pharma','pl','c']
     os.chdir('../')
     os.system('rm -rf tmp')
+    print "Cleanup takes %fs" % (time.time()-start)
     return df
         
     
@@ -149,9 +153,10 @@ def featureSASA(inprot, inlig, write=False):
     #elemstr = [str(i) for i in elemint]
     pharmatype = ['P', 'N', 'DA', 'D', 'A', 'AR', 'H', 'PL', 'HA']
     outdict = {i:0 for i in pharmatype}
-    
+    start = time.time()
     # run MSMS
     df = runMSMS(inprot, inlig)
+    print "runMSMS took %f s" % (time.time()-start)
 
     ## delta SASA with clip 0 (if value less 0, cut to 0)
     df["d"] = (df["pl"] - df["c"]).clip(0,None)
