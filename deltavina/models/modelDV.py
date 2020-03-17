@@ -37,6 +37,8 @@ def prepDV(pdblist, directory="preparseddata"):
     pdblist : list[list[str,str]]
         list of pdb or mol2 of protein and ligand
     """
+    if not os.path.exists(directory):
+        os.mkdir(directory)
     for pdb in pdblist:
         prot = pdb[0]
         lig = pdb[1]
